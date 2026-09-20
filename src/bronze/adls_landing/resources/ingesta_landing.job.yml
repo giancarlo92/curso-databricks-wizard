@@ -1,0 +1,55 @@
+# Un task por tabla de la fuente; todos ejecutan el mismo notebook parametrizado.
+resources:
+  jobs:
+    ingesta_landing_bronze:
+      name: ingesta_landing_bronze
+
+      schedule:
+        # Todos los días a las 12:00 a.m. (hora de Lima).
+        # Para pausar/reanudar: cambiar a PAUSED / UNPAUSED y ejecutar `databricks bundle deploy -p <perfil>`.
+        quartz_cron_expression: "0 0 0 * * ?"
+        timezone_id: America/Lima
+        pause_status: UNPAUSED
+
+      max_concurrent_runs: 1
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: landing_path
+          default: ${var.landing_path}
+        - name: checkpoint_path
+          default: ${var.checkpoint_path}
+
+      tasks:
+        - task_key: cuotas
+          notebook_task:
+            notebook_path: ../src/ingesta_autoloader.py
+            base_parameters:
+              table: cuotas
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              landing_path: "{{job.parameters.landing_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
+
+        - task_key: pagos
+          notebook_task:
+            notebook_path: ../src/ingesta_autoloader.py
+            base_parameters:
+              table: pagos
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              landing_path: "{{job.parameters.landing_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
+
+        - task_key: gestiones_cobranza
+          notebook_task:
+            notebook_path: ../src/ingesta_autoloader.py
+            base_parameters:
+              table: gestiones_cobranza
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              landing_path: "{{job.parameters.landing_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
