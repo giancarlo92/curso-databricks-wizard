@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    ingesta_eventos_app:
+      name: ingesta_eventos_app
+
+      schedule:
+        # Pausada: se ejecuta a mano. Cada 5 minutos si se reanuda (Capture deja un archivo por minuto).
+        quartz_cron_expression: "0 0/5 * * * ?"
+        timezone_id: America/Lima
+        pause_status: PAUSED
+
+      max_concurrent_runs: 1
+
+      tasks:
+        - task_key: eventos_app
+          notebook_task:
+            notebook_path: ../src/ingesta_eventos_app.py
+            base_parameters:
+              capture_path: ${var.capture_path}
+              checkpoint_path: ${var.checkpoint_path}
+              target: ${var.catalog}.${var.schema}.${var.table}

@@ -51,6 +51,15 @@ Una variable ya definida en el entorno tiene prioridad sobre el archivo.
    cuenta de storage y (opcional) `WIZARDBANK_WAREHOUSE_ID`.
 3. Exporta `WIZARDBANK_SP_CLIENT_SECRET` y ejecuta el comando de arriba.
 
+## Secretos de Event Hubs (Sesión 11)
+
+El notebook de streaming lee dos claves del scope `wizardbank`. Ambos valores los entrega Terraform.
+
+```powershell
+$env:WIZARDBANK_EVENTHUB_CONNECTION_STRING = '<connection string>'
+uv run python src\setup\setup_secrets_eventhubs.py --namespace <namespace, sin .servicebus.windows.net> --perfil <perfil>
+```
+
 ## Requisitos previos (fuera de este script)
 
 - El Service Principal debe tener en Azure el rol **Storage Blob Data Contributor** sobre la cuenta de storage
