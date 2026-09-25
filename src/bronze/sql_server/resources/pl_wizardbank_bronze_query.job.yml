@@ -1,0 +1,16 @@
+resources:
+  jobs:
+    pl_wizardbank_bronze_query_job:
+      name: pl_wizardbank_bronze_query job
+      max_concurrent_runs: 1
+
+      trigger:
+        pause_status: PAUSED
+        periodic:
+          interval: 1
+          unit: DAYS
+
+      tasks:
+        - task_key: pl_wizardbank_bronze_query_job
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.pl_wizardbank_bronze_query.id}

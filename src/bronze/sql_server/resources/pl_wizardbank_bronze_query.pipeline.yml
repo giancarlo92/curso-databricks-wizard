@@ -1,0 +1,83 @@
+resources:
+  pipelines:
+    pl_wizardbank_bronze_query:
+      name: pl_wizardbank_bronze_query
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      channel: PREVIEW
+      ingestion_definition:
+        connection_name: ${var.connection_name}
+        source_type: SQLSERVER
+        objects:
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: campanias
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                query_based_connector_config: {}
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: clientes
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                primary_keys: [id_cliente]
+                query_based_connector_config:
+                  cursor_columns: [fecha_actualizacion]
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: desembolsos
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                primary_keys: [id_desembolso]
+                query_based_connector_config:
+                  cursor_columns: [fecha_actualizacion]
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: ofertas_preaprobadas
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                primary_keys: [id_oferta]
+                query_based_connector_config:
+                  cursor_columns: [fecha_actualizacion]
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: paises
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                query_based_connector_config: {}
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: productos_prestamo
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                query_based_connector_config: {}
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: solicitudes_prestamo
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                primary_keys: [id_solicitud]
+                query_based_connector_config:
+                  cursor_columns: [fecha_actualizacion]
+          - table:
+              source_catalog: ${var.source_catalog}
+              source_schema: lending
+              source_table: tipos_cambio
+              destination_catalog: ${var.catalog}
+              destination_schema: ${var.schema}
+              table_configuration:
+                query_based_connector_config: {}
