@@ -21,7 +21,7 @@ databricks catalogs create wizardbank_federado --connection-name wizardbank_sqls
 ```
 
 El notebook del lab (JDBC contra Azure SQL con el secret scope `wizardbank`, y Event Hubs con Capture + Auto Loader) está en
-[src/notebooks/pruebas_azure_db.py](../../notebooks/pruebas_azure_db.py).
+[src/pruebas_azure_db.py](src/pruebas_azure_db.py).
 
 ## 2. Despliegue y ejecución
 
