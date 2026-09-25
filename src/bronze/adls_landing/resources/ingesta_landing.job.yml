@@ -1,4 +1,4 @@
-# Un task por tabla de la fuente; todos ejecutan el mismo notebook parametrizado.
+# Primero crea las tablas (DDL); luego un task por tabla de la fuente, todos con el mismo notebook parametrizado.
 resources:
   jobs:
     ingesta_landing_bronze:
@@ -9,7 +9,7 @@ resources:
         # Para pausar/reanudar: cambiar a PAUSED / UNPAUSED y ejecutar `databricks bundle deploy -p <perfil>`.
         quartz_cron_expression: "0 0 0 * * ?"
         timezone_id: America/Lima
-        pause_status: UNPAUSED
+        pause_status: PAUSED
 
       max_concurrent_runs: 1
 
@@ -24,7 +24,16 @@ resources:
           default: ${var.checkpoint_path}
 
       tasks:
+        - task_key: crear_tablas
+          notebook_task:
+            notebook_path: ../src/crear_tablas.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+
         - task_key: cuotas
+          depends_on:
+            - task_key: crear_tablas
           notebook_task:
             notebook_path: ../src/ingesta_autoloader.py
             base_parameters:
@@ -35,6 +44,8 @@ resources:
               checkpoint_path: "{{job.parameters.checkpoint_path}}"
 
         - task_key: pagos
+          depends_on:
+            - task_key: crear_tablas
           notebook_task:
             notebook_path: ../src/ingesta_autoloader.py
             base_parameters:
@@ -45,6 +56,8 @@ resources:
               checkpoint_path: "{{job.parameters.checkpoint_path}}"
 
         - task_key: gestiones_cobranza
+          depends_on:
+            - task_key: crear_tablas
           notebook_task:
             notebook_path: ../src/ingesta_autoloader.py
             base_parameters:

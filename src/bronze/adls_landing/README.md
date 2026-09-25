@@ -2,13 +2,14 @@
 
 Bundle con un job de Databricks que ingesta las tablas de cobranzas desde landing hacia Bronze.
 
-- **Job:** `ingesta_landing_bronze`, un task por tabla (`cuotas`, `pagos`, `gestiones_cobranza`) en paralelo.
-- **Notebook:** un único notebook parametrizado, [src/ingesta_autoloader.py](src/ingesta_autoloader.py).
+- **Job:** `ingesta_landing_bronze`, `crear_tablas` y luego un task por tabla (`cuotas`, `pagos`, `gestiones_cobranza`) en paralelo.
+- **DDL:** el task `crear_tablas` ([src/crear_tablas.py](src/crear_tablas.py)) crea antes las tablas: columnas de la fuente en `string`, columnas de control (`_rescued_data`, `_source_file`, `_ingested_at`) y `delta.appendOnly` (solo inserts). Es idempotente (`CREATE TABLE IF NOT EXISTS`): no toca tablas existentes. Las columnas de cada tabla se definen ahí. Para cambiar la estructura de una tabla ya creada hay que hacer `DROP TABLE` y borrar su checkpoint.
+- **Notebook:** un único notebook parametrizado, [src/ingesta_autoloader.py](src/ingesta_autoloader.py), que castea a `string` y escribe en la tabla ya creada.
 - **Schedule:** todos los días a las 12:00 a.m., zona `America/Lima`.
 - **Cómputo:** serverless.
 - **Origen:** `<landing_path>/<tabla>/`, Parquet particionado por `año/mes/día`.
 - **Checkpoint y schema de Auto Loader:** `<checkpoint_path>/<tabla>/{checkpoint,schema}`.
-- **Destino:** `<catalog>.<schema>.<tabla>`. El notebook crea el schema si no existe.
+- **Destino:** `<catalog>.<schema>.<tabla>`. `crear_tablas` crea el schema si no existe.
 
 ## Requisitos
 

@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # Ingesta landing -> bronze con Auto Loader
 # MAGIC Notebook parametrizado: ingesta una tabla de `<landing_path>/<table>/` (Parquet, particionado por año/mes/día)
-# MAGIC hacia `<catalog>.<schema>.<table>`. El checkpoint y el schema de Auto Loader viven en `<checkpoint_path>/<table>/`.
+# MAGIC hacia `<catalog>.<schema>.<table>` (que crea antes `crear_tablas.py`). El checkpoint y el schema de Auto Loader viven en `<checkpoint_path>/<table>/`.
 
 # COMMAND ----------
 
@@ -33,26 +33,24 @@ print(f"source={source}\nschema_location={schema_location}\ncheckpoint={checkpoi
 
 # COMMAND ----------
 
-spark.sql(f"CREATE SCHEMA IF NOT EXISTS `{catalog}`.`{schema}`")
-
-# COMMAND ----------
-
 from pyspark.sql import functions as F
 
 df = (
     spark.readStream.format("cloudFiles")
     .option("cloudFiles.format", "parquet")
     .option("cloudFiles.schemaLocation", schema_location)
-    .option("cloudFiles.inferColumnTypes", "true")
     .load(source)
     .withColumn("_source_file", F.col("_metadata.file_path"))
     .withColumn("_ingested_at", F.current_timestamp())
 )
 
+# La tabla ya existe (crear_tablas.py): se castea cada columna de la fuente a string y se conservan las de control
+df = df.select(*[F.col(c.name).cast("string") for c in spark.table(target).schema if not c.name.startswith("_")],
+               "_rescued_data", "_source_file", "_ingested_at")
+
 query = (
     df.writeStream
     .option("checkpointLocation", checkpoint_location)
-    .option("mergeSchema", "true")
     .trigger(availableNow=True)
     .toTable(target)
 )

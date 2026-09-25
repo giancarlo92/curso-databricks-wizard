@@ -42,5 +42,5 @@ databricks bundle deployment bind pl_wizardbank_bronze_query_job <job_id> -p $pe
 ## Nota: auto-pausa de Azure SQL
 
 La base es serverless y se pausa por inactividad. Si el pipeline arranca con la base pausada, `clientes` falla con
-`QUERY_BASED_CONNECTOR_SOURCE_API_ERROR ... GET_TABLE_SCHEMA` (error no reintentable). Basta una consulta previa para
-despertarla y volver a ejecutar, por ejemplo `SELECT 1 FROM wizardbank_federado.lending.paises`.
+`QUERY_BASED_CONNECTOR_SOURCE_API_ERROR ... GET_TABLE_SCHEMA` (error no reintentable). Por eso el job ejecuta antes el
+task `despertar_bd` ([src/despertar_bd.py](src/despertar_bd.py)), que consulta la base con reintentos.
