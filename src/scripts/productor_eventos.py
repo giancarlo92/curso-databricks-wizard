@@ -17,7 +17,7 @@ Requiere que el namespace de Event Hubs y el event hub (topic) ya existan:
 ver "Provisionar Event Hubs" en la Sesión 11 antes de correr este script.
 
 Uso:
-    # Carga histórica — 20.000 eventos por defecto (tamaño de lab; el volumen
+    # Carga histórica — 2.000 eventos por defecto (tamaño de lab; el volumen
     # documentado en la Sesión 8.2, ~2.027.000, es la referencia de producción)
     python productor_eventos.py --modo historico \
         --dsn "Driver={ODBC Driver 18 for SQL Server};\
@@ -28,7 +28,7 @@ Uid=wizadmin;Pwd=<tu-password>;Encrypt=yes;TrustServerCertificate=no;" \
 SharedAccessKeyName=<...>;SharedAccessKey=<...>"
 
     # Volumen reducido, para una prueba rápida
-    python productor_eventos.py --modo historico --eventos 2000 --dsn "..." \
+    python productor_eventos.py --modo historico --eventos 200 --dsn "..." \
         --bootstrap-servers ... --connection-string "..."
 
     # Emisión continua — para el lab de streaming en vivo (Ctrl+C para detener)
@@ -73,7 +73,7 @@ PESO_EVENTOS = {
     "solicitud_iniciada":      60_000,
 }
 
-N_EVENTOS_HISTORICO_DEFAULT = 20_000   # tamaño de lab — sube con --eventos
+N_EVENTOS_HISTORICO_DEFAULT = 2_000   # tamaño de lab — sube con --eventos
 EPS_DEFAULT = 5
 
 CANALES              = ["APP_IOS", "APP_ANDROID", "WEB"]

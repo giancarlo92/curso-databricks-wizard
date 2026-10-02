@@ -28,6 +28,11 @@ Uid=wizadmin;Pwd=WizardBank2026Test;Encrypt=yes;TrustServerCertificate=no;"
     # Volumen reducido para pruebas rápidas
     python generar_datos_wizard_bank.py --destino csv --clientes 1000
 
+    # Carga incremental sobre Azure SQL (ya cargado): agrega clientes nuevos con sus ofertas,
+    # solicitudes y desembolsos, y modifica algunos clientes existentes (el trigger actualiza
+    # fecha_actualizacion). Sirve para probar las cargas incrementales; se puede repetir.
+    python generar_datos_wizard_bank.py --destino azuresql --modo incremental --dsn "..."
+
 Requisitos:
     pip install pyodbc              (para --destino azuresql)
     pip install psycopg2-binary     (para --destino postgres)
@@ -799,10 +804,70 @@ def validar(datos):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# INCREMENTAL
+# ─────────────────────────────────────────────────────────────────────────────
+
+TABLAS_INCREMENTALES = ['clientes', 'ofertas_preaprobadas', 'solicitudes_prestamo', 'desembolsos']
+
+
+def leer_estado_azuresql(dsn):
+    """Máximos de id por tabla y documentos ya usados, para no chocar con lo cargado."""
+    import pyodbc
+    conn = pyodbc.connect(dsn, autocommit=True)
+    cur = conn.cursor()
+    maximos = {}
+    for tabla, col in (('clientes', 'id_cliente'), ('ofertas_preaprobadas', 'id_oferta'),
+                       ('solicitudes_prestamo', 'id_solicitud'), ('desembolsos', 'id_desembolso')):
+        cur.execute(f'SELECT COALESCE(MAX({col}), 0) FROM lending.{tabla}')
+        maximos[tabla] = cur.fetchone()[0]
+    cur.execute('SELECT id_pais, numero_documento FROM lending.clientes')
+    documentos = {(r[0], r[1]) for r in cur.fetchall()}
+    conn.close()
+    return maximos, documentos
+
+
+def desplazar_ids(datos, maximos, documentos):
+    """Los generadores numeran desde 1: se desplazan los ids (y sus FK) para continuar tras lo cargado."""
+    oc, oo = maximos['clientes'], maximos['ofertas_preaprobadas']
+    os_, od = maximos['solicitudes_prestamo'], maximos['desembolsos']
+    for c in datos['clientes']:
+        c['id_cliente'] += oc
+        while (c['id_pais'], c['numero_documento']) in documentos:
+            c['numero_documento'] = ''.join(random.choice('0123456789') for _ in c['numero_documento'])
+        documentos.add((c['id_pais'], c['numero_documento']))
+    for o in datos['ofertas_preaprobadas']:
+        o['id_oferta'] += oo
+        o['id_cliente'] += oc
+    for s in datos['solicitudes_prestamo']:
+        s['id_solicitud'] += os_
+        s['id_oferta'] += oo
+        s['id_cliente'] += oc
+    for d in datos['desembolsos']:
+        d['id_desembolso'] += od
+        d['id_solicitud'] += os_
+        d['id_cliente'] += oc
+
+
+def actualizar_clientes(dsn, n):
+    """Modifica el score de n clientes existentes; el trigger actualiza fecha_actualizacion."""
+    import pyodbc
+    conn = pyodbc.connect(dsn, autocommit=True)
+    cur = conn.cursor()
+    cur.execute(f'SELECT TOP ({int(n)}) id_cliente, score_interno FROM lending.clientes ORDER BY NEWID()')
+    for id_cliente, score in cur.fetchall():
+        nuevo = max(300, min(1000, score + random.randint(-60, 60)))
+        cur.execute('UPDATE lending.clientes SET score_interno = ?, nivel_riesgo = ? WHERE id_cliente = ?',
+                    nuevo, nivel_riesgo_desde_score(nuevo), id_cliente)
+    conn.close()
+    print(f'  ✏️  {n} clientes existentes actualizados')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
 def main():
+    global FECHA_INICIO, FECHA_FIN
     ap = argparse.ArgumentParser(
         description='Genera los datos sintéticos de Wizard Bank · módulo Lending')
     ap.add_argument('--destino', choices=['csv', 'azuresql', 'postgres'], default='csv',
@@ -815,6 +880,14 @@ def main():
                          'ODBC para azuresql, libpq para postgres.')
     ap.add_argument('--clientes', type=int, default=CLIENTES_DEFAULT,
                     help=f'Número de clientes a generar (default: {CLIENTES_DEFAULT:,})')
+    ap.add_argument('--modo', choices=['full', 'incremental'], default='full',
+                    help='full = carga completa (default). incremental = agrega datos nuevos y modifica '
+                         'algunos clientes sobre un Azure SQL ya cargado (requiere --destino azuresql).')
+    ap.add_argument('--nuevos-clientes', type=int, default=100,
+                    help='Solo --modo incremental: clientes nuevos (default 100), con sus ofertas, '
+                         'solicitudes y desembolsos.')
+    ap.add_argument('--actualizar-clientes', type=int, default=20,
+                    help='Solo --modo incremental: clientes existentes a modificar (default 20).')
     ap.add_argument('--truncar', action='store_true',
                     help='Vaciar las tablas antes de insertar (azuresql | postgres)')
     ap.add_argument('--seed', type=int, default=SEED,
@@ -825,20 +898,32 @@ def main():
         sys.exit(f'ERROR: --destino {args.destino} requiere --dsn '
                  f'o la variable de entorno WIZARD_BANK_DSN')
 
+    if args.modo == 'incremental' and args.destino != 'azuresql':
+        sys.exit('ERROR: --modo incremental requiere --destino azuresql')
+
+    incremental = args.modo == 'incremental'
+    n_clientes = args.nuevos_clientes if incremental else args.clientes
     random.seed(args.seed)
 
     print('═' * 66)
     print('  WIZARD BANK · Generador de datos del módulo de Lending')
     print('═' * 66)
-    print(f'  Clientes: {args.clientes:,}   ·   Ventana: {FECHA_INICIO} → {FECHA_FIN}')
+    print(f'  Clientes: {n_clientes:,}   ·   Ventana: {FECHA_INICIO} → {FECHA_FIN}')
     print(f'  Semilla:  {args.seed}   ·   Destino: {args.destino}\n')
 
-    n_ofertas = int(args.clientes * RATIO_OFERTAS_POR_CLIENTE)
+    n_ofertas = int(n_clientes * RATIO_OFERTAS_POR_CLIENTE)
 
     print('── Generando ─────────────────────────────────────────────────')
     campanias   = generar_campanias();                  print(f'  campanias            {len(campanias):>9,}')
     productos   = generar_productos();                  print(f'  productos_prestamo   {len(productos):>9,}')
-    clientes    = generar_clientes(args.clientes, campanias)
+    if incremental:
+        # Los catálogos salen con la semilla fija (idénticos a los ya cargados); lo nuevo usa otra
+        # semilla y una ventana que termina 65 días atrás (la vigencia de las ofertas llega a +60 días),
+        # para que cada corrida genere datos distintos y ninguna fecha caiga en el futuro.
+        random.seed()
+        FECHA_FIN = date.today() - timedelta(days=65)
+        FECHA_INICIO = FECHA_FIN - timedelta(days=60)
+    clientes    = generar_clientes(n_clientes, campanias)
     print(f'  clientes             {len(clientes):>9,}')
     ofertas     = generar_ofertas(clientes, productos, campanias, n_ofertas)
     print(f'  ofertas_preaprobadas {len(ofertas):>9,}')
@@ -846,7 +931,7 @@ def main():
     print(f'  solicitudes_prestamo {len(solicitudes):>9,}')
     desembolsos = generar_desembolsos(solicitudes, clientes)
     print(f'  desembolsos          {len(desembolsos):>9,}')
-    tipos_cambio = generar_tipos_cambio()
+    tipos_cambio = [] if incremental else generar_tipos_cambio()
     print(f'  tipos_cambio         {len(tipos_cambio):>9,}')
 
     datos = {
@@ -865,7 +950,13 @@ def main():
         sys.exit('\nAbortado: los datos generados no pasaron la validación.')
 
     print(f'\n── Escribiendo ({args.destino}) ───────────────────────────────')
-    if args.destino == 'csv':
+    if incremental:
+        maximos, documentos = leer_estado_azuresql(args.dsn)
+        desplazar_ids(datos, maximos, documentos)
+        actualizar_clientes(args.dsn, args.actualizar_clientes)
+        nuevos = {tabla: (datos[tabla] if tabla in TABLAS_INCREMENTALES else []) for tabla in ORDEN_CARGA}
+        escribir_azuresql(nuevos, args.dsn, False)
+    elif args.destino == 'csv':
         escribir_csv(datos, args.salida)
     elif args.destino == 'azuresql':
         escribir_azuresql(datos, args.dsn, args.truncar)

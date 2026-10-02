@@ -51,13 +51,15 @@ Una variable ya definida en el entorno tiene prioridad sobre el archivo.
    cuenta de storage y (opcional) `WIZARDBANK_WAREHOUSE_ID`.
 3. Exporta `WIZARDBANK_SP_CLIENT_SECRET` y ejecuta el comando de arriba.
 
-## Secretos de Event Hubs (Sesión 11)
+## Secretos (scope `wizardbank`)
 
-El notebook de streaming lee dos claves del scope `wizardbank`. Ambos valores los entrega Terraform.
+Crea el scope y los secretos `jdbc-url`, `jdbc-user`, `jdbc-password` (Azure SQL) y `eventhub-namespace`. La contraseña de
+Azure SQL va por variable de entorno; la connection string de Event Hubs es opcional (Capture + Auto Loader no la usa).
 
 ```powershell
-$env:WIZARDBANK_EVENTHUB_CONNECTION_STRING = '<connection string>'
-uv run python src\setup\setup_secrets_eventhubs.py --namespace <namespace, sin .servicebus.windows.net> --perfil <perfil>
+$env:WIZARDBANK_SQL_PASSWORD = '<password de Azure SQL>'
+$env:WIZARDBANK_EVENTHUB_CONNECTION_STRING = '<connection string>'   # opcional
+uv run python src\setup\setup_secrets.py --perfil <perfil>
 ```
 
 ## Requisitos previos (fuera de este script)

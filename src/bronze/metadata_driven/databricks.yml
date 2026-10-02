@@ -1,0 +1,27 @@
+# Declarative Automation Bundle: ingesta metadata-driven (motor + tablas de control) de todas las fuentes.
+# El workspace destino se elige al desplegar con el perfil: databricks bundle deploy -p <perfil>
+bundle:
+  name: metadata_driven
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Catálogo bronze (se crea si no existe); el schema control vive aquí
+  landing_path:
+    description: Raíz del container landing (external location azure_adls_landing_location)
+  checkpoint_path:
+    description: Raíz de checkpoints y schemas de Auto Loader (external location azure_adls_checkpoint_location)
+  checkpoint_version:
+    description: Versión de los checkpoints de Auto Loader. Cambiarla (v1, v2...) fuerza a recargar todo desde landing; las tablas destino deben estar vacías o se duplican filas
+
+targets:
+  dev:
+    # Sin 'mode: development' a propósito: renombraría el job con el prefijo del usuario y forzaría el schedule pausado.
+    default: true
+    variables:
+      catalog: bronze_dev
+      landing_path: abfss://landing@dbwizarduniquelab.dfs.core.windows.net
+      checkpoint_path: abfss://checkpoint@dbwizarduniquelab.dfs.core.windows.net/autoloader
+      checkpoint_version: v3
