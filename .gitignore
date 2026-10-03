@@ -429,3 +429,9 @@ FodyWeavers.xsd
 *.msm
 *.msp
 .vscode/
+
+# Credenciales locales (nunca al repositorio)
+.env
+*.env
+!*.env.example
+src/scripts/generar_carga.py
