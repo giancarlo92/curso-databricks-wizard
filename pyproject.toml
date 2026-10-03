@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Scripts y laboratorios del curso Databricks Wizard"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "confluent-kafka>=2.15.1",
     "pyodbc>=5.3.0",
 ]
 

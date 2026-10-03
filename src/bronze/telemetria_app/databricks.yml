@@ -1,0 +1,29 @@
+# Declarative Automation Bundle: telemetría de la app (Event Hubs Capture -> ADLS avro) -> Bronze con Auto Loader.
+# El workspace destino se elige al desplegar con el perfil: databricks bundle deploy -p <perfil>
+bundle:
+  name: telemetria_app
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Catálogo destino (capa bronze)
+  schema:
+    description: Schema destino dentro del catálogo
+  table:
+    description: Tabla destino
+  capture_path:
+    description: Ruta donde Event Hubs Capture deja los .avro (external location azure_adls_landing_location)
+  checkpoint_path:
+    description: Ruta para el checkpoint y el schema de Auto Loader (external location azure_adls_checkpoint_location)
+
+targets:
+  dev:
+    default: true
+    variables:
+      catalog: bronze_dev
+      schema: telemetria_app
+      table: eventos_app
+      capture_path: abfss://landing@dbwizarduniquelab.dfs.core.windows.net/evhns-wizardbank-dfa70747/wizard.lending.eventos-app/
+      checkpoint_path: abfss://checkpoint@dbwizarduniquelab.dfs.core.windows.net/autoloader/telemetria_app/eventos_app/

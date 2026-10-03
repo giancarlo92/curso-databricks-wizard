@@ -1,0 +1,28 @@
+# Declarative Automation Bundle: ingesta ADLS (landing) -> Bronze con Auto Loader.
+# El workspace destino se elige al desplegar con el perfil: databricks bundle deploy -p <perfil>
+bundle:
+  name: adls_landing
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Catálogo destino (capa bronze)
+  schema:
+    description: Schema destino dentro del catálogo
+  landing_path:
+    description: Ruta base de landing (external location azure_adls_landing_location)
+  checkpoint_path:
+    description: Ruta base para checkpoints y schemas de Auto Loader (external location azure_adls_checkpoint_location)
+
+targets:
+  dev:
+    # Sin 'mode: development' a propósito: en ese modo el job se renombra con el prefijo del usuario y no cambia
+    # el bloqueo de la UI (un job de bundle siempre queda UI_LOCKED). Aquí el job debe quedar programado.
+    default: true
+    variables:
+      catalog: bronze_dev
+      schema: cobranzas
+      landing_path: abfss://landing@dbwizarduniquelab.dfs.core.windows.net/cobranzas
+      checkpoint_path: abfss://checkpoint@dbwizarduniquelab.dfs.core.windows.net/autoloader/cobranzas

@@ -1,0 +1,68 @@
+# Primero crea las tablas (DDL); luego un task por tabla de la fuente, todos con el mismo notebook parametrizado.
+resources:
+  jobs:
+    ingesta_landing_bronze:
+      name: ingesta_landing_bronze
+
+      schedule:
+        # Todos los días a las 12:00 a.m. (hora de Lima).
+        # Para pausar/reanudar: cambiar a PAUSED / UNPAUSED y ejecutar `databricks bundle deploy -p <perfil>`.
+        quartz_cron_expression: "0 0 0 * * ?"
+        timezone_id: America/Lima
+        pause_status: PAUSED
+
+      max_concurrent_runs: 1
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: landing_path
+          default: ${var.landing_path}
+        - name: checkpoint_path
+          default: ${var.checkpoint_path}
+
+      tasks:
+        - task_key: crear_tablas
+          notebook_task:
+            notebook_path: ../src/crear_tablas.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+
+        - task_key: cuotas
+          depends_on:
+            - task_key: crear_tablas
+          notebook_task:
+            notebook_path: ../src/ingesta_autoloader.py
+            base_parameters:
+              table: cuotas
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              landing_path: "{{job.parameters.landing_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
+
+        - task_key: pagos
+          depends_on:
+            - task_key: crear_tablas
+          notebook_task:
+            notebook_path: ../src/ingesta_autoloader.py
+            base_parameters:
+              table: pagos
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              landing_path: "{{job.parameters.landing_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
+
+        - task_key: gestiones_cobranza
+          depends_on:
+            - task_key: crear_tablas
+          notebook_task:
+            notebook_path: ../src/ingesta_autoloader.py
+            base_parameters:
+              table: gestiones_cobranza
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              landing_path: "{{job.parameters.landing_path}}"
+              checkpoint_path: "{{job.parameters.checkpoint_path}}"
